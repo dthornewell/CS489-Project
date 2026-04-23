@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #define MSG_HEADER  0x01
@@ -36,6 +37,8 @@ static struct sockaddr_in servaddr;
 static uint8_t send_buf[MAX_UDP_PAYLOAD];
 static size_t send_buf_len = 0;   /* bytes currently in send_buf */
 static pcap_t *pcap_handle  = NULL;
+static int first_packet = 1;
+static struct timeval start_time;
 
 static void flush_buffer(void) {
     if (send_buf_len <= 1)
@@ -64,8 +67,8 @@ static void packet_handler(u_char *user, const struct pcap_pkthdr *hdr, const u_
     }
 
     pcap_rec_hdr_t rec;
-    rec.ts_sec = (uint32_t)hdr->ts.tv_sec;
-    rec.ts_usec = (uint32_t)hdr->ts.tv_usec;
+    rec.ts_sec = (uint32_t)hdr->ts.tv_sec + start_time.tv_sec;
+    rec.ts_usec = (uint32_t)hdr->ts.tv_usec + start_time.tv_usec;
     rec.incl_len = hdr->caplen;
     rec.orig_len = hdr->len;
     memcpy(send_buf + send_buf_len, &rec, sizeof(rec));
@@ -93,6 +96,8 @@ int main(int argc, char *argv[]) {
                 argv[0], argv[0]);
         return 1;
     }
+
+    gettimeofday(&start_time, NULL);
 
     const char *iface = argv[1];
     const char *server_ip = argv[2];
